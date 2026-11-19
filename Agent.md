@@ -13,3 +13,4 @@ Spesifikasi lengkap ada di SPEC.md. Baca hanya bagian yang relevan dengan tugas,
 - Hanya pakai fitur web yang didukung Safari iOS dan Chrome Android.
 - Sebelum fase dianggap selesai: `tsc --noEmit`, lint, dan semua test harus lolos.
 - Jika spesifikasi ambigu, tanya. Jangan menebak.
+- Ikuti DESIGN.md untuk semua UI baru. Pakai komponen yang sudah ada, jangan membuat gaya baru.
