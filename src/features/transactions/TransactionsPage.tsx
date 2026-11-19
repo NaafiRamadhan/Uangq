@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { db, seedDatabase, type Category, type Transaction, type Wallet } from '../../db/schema'
 import { formatRupiah } from '../../lib/money'
 import { Button, Card, EmptyState, Input } from '../../components/ui'
+import { QuickEntry } from './QuickEntry'
 
 type TransactionDraft = {
   type: Transaction['type']
@@ -130,7 +131,13 @@ function formatTransactionAmount(transaction: Transaction): string {
   return `${prefix}${formatRupiah(transaction.amount)}`
 }
 
-export function TransactionsPage({ onOpenWallets }: { onOpenWallets: () => void }) {
+export function TransactionsPage({
+  onOpenWallets,
+  defaultWalletId,
+}: {
+  onOpenWallets: () => void
+  defaultWalletId: string
+}) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -408,6 +415,12 @@ export function TransactionsPage({ onOpenWallets }: { onOpenWallets: () => void 
     return (
       <div className="feature-page">
         {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+        <QuickEntry
+          wallets={wallets}
+          categories={categories}
+          defaultWalletId={defaultWalletId}
+          onSaved={loadTransactions}
+        />
         <EmptyState
           title="Buat dompet sebelum mencatat transaksi"
           action={<Button type="button" onClick={onOpenWallets}>Buat dompet</Button>}
@@ -421,6 +434,12 @@ export function TransactionsPage({ onOpenWallets }: { onOpenWallets: () => void 
 
   return (
     <div className="feature-page">
+      <QuickEntry
+        wallets={wallets}
+        categories={categories}
+        defaultWalletId={defaultWalletId}
+        onSaved={loadTransactions}
+      />
       <div className="feature-toolbar">
         <p className="feature-description">Catat pemasukan, pengeluaran, dan perpindahan saldo.</p>
         <div className="toolbar-actions">
