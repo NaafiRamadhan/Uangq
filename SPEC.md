@@ -2,7 +2,7 @@
 
 > Taruh file ini di root repo. Di Copilot CLI / OpenCode / Cline, salin isinya ke `AGENTS.md`
 > (atau `.github/copilot-instructions.md`) supaya selalu terbaca agent.
-> Nama aplikasi: `<NAMA_APP>` (ganti sendiri; jangan memakai nama, logo, atau teks milik pihak lain).
+> Nama aplikasi: `Uangq` (ganti sendiri; jangan memakai nama, logo, atau teks milik pihak lain).
 
 ## 1. Tujuan
 
@@ -87,14 +87,14 @@ Kategori awal (seed, bisa diubah pengguna):
 
 ```json
 {
-  "app": "<NAMA_APP>",
+  "app": "Uangq",
   "schemaVersion": 1,
   "exportedAt": "2026-01-01T00:00:00.000Z",
   "data": { "wallets": [], "categories": [], "transactions": [], "budgets": [], "budgetItems": [], "settings": [] }
 }
 ```
 
-- Ekspor: unduh file `.json` bernama `<nama-app>-backup-YYYY-MM-DD.json`.
+- Ekspor: unduh file `.json` bernama `<uangq>-backup-YYYY-MM-DD.json`.
 - Impor: validasi struktur dan `schemaVersion` dulu, tampilkan ringkasan (jumlah dompet/transaksi),
   minta konfirmasi, lalu **ganti seluruh data** dalam satu transaksi database (gagal = tidak ada yang berubah).
 - Tolak file dengan `schemaVersion` lebih baru dari yang dikenal app. Sediakan fungsi migrasi untuk versi lama.
