@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { exportBackup, importBackup, validateBackup, type BackupFile } from './lib/backup'
 import { requestPersistentStorage, seedDatabase } from './db/schema'
 import { BottomNav, Button, Card, EmptyState, PageHeader } from './components/ui'
+import { WalletsPage } from './features/wallets/WalletsPage'
+import { TransactionsPage } from './features/transactions/TransactionsPage'
 
 type Page = 'Home' | 'Dompet' | 'Transaksi' | 'Budget' | 'Pengaturan'
 
@@ -55,7 +57,11 @@ function App() {
     <div className="app-shell">
       <main className="app-content">
         <PageHeader title={pageLabels[page]} />
-        {page !== 'Pengaturan' ? (
+        {page === 'Dompet' ? (
+          <WalletsPage />
+        ) : page === 'Transaksi' ? (
+          <TransactionsPage onOpenWallets={() => setPage('Dompet')} />
+        ) : page !== 'Pengaturan' ? (
           <EmptyState title={`Belum ada ${pageLabels[page].toLowerCase()}`}>
             Mulai dari Pengaturan untuk membuat atau memulihkan backup.
           </EmptyState>
