@@ -154,8 +154,8 @@ export function TransactionsPage({
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  async function loadTransactions() {
-    setLoading(true)
+  async function loadTransactions(showLoading = true) {
+    if (showLoading) setLoading(true)
     try {
       await seedDatabase()
       const [nextTransactions, nextWallets, nextCategories] = await Promise.all([
@@ -170,7 +170,7 @@ export function TransactionsPage({
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Transaksi gagal dimuat.')
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }
 
@@ -419,7 +419,7 @@ export function TransactionsPage({
           wallets={wallets}
           categories={categories}
           defaultWalletId={defaultWalletId}
-          onSaved={loadTransactions}
+          onSaved={() => loadTransactions(false)}
         />
         <EmptyState
           title="Buat dompet sebelum mencatat transaksi"
@@ -438,7 +438,7 @@ export function TransactionsPage({
         wallets={wallets}
         categories={categories}
         defaultWalletId={defaultWalletId}
-        onSaved={loadTransactions}
+        onSaved={() => loadTransactions(false)}
       />
       <div className="feature-toolbar">
         <p className="feature-description">Catat pemasukan, pengeluaran, dan perpindahan saldo.</p>

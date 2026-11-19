@@ -19,3 +19,7 @@ Token didefinisikan di `src/index.css`. Komponen bersama ada di `src/components/
 `Card`, `Button`, `Input`, `BottomNav`, `EmptyState`, dan `PageHeader` membentuk lapisan UI dasar. Navigasi bawah memakai ikon SVG dengan ikon beralas aksen, teks lebih tegas, dan `aria-current` pada tab aktif. Target sentuh minimal 44px; padding area konten dan navigasi memperhitungkan safe area perangkat.
 
 Konten dibatasi selebar 480px dan berada di tengah pada layar lebar. Halaman yang tersedia tetap sama; judul halaman hanya tampil sekali pada header halaman.
+
+## Aturan hitung budget
+
+Alokasi kelompok dibulatkan ke rupiah bulat dengan metode sisa terbesar, sehingga jumlah alokasi selalu sama dengan total budget. Sisa budget harian membagi sisa bulanan dengan jumlah hari yang masih tersedia **termasuk hari ini**, lalu memotong pecahan rupiah menuju nol. Status kategori/kelompok menandai pemakaian mulai 80% sebagai “Mendekati batas” dan pemakaian di atas 100% sebagai “Melewati batas”.

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { exportBackup, importBackup, validateBackup, type BackupFile } from './lib/backup'
 import { db, requestPersistentStorage, seedDatabase } from './db/schema'
-import { BottomNav, Button, Card, EmptyState, PageHeader } from './components/ui'
+import { BottomNav, Button, Card, PageHeader } from './components/ui'
 import { WalletsPage } from './features/wallets/WalletsPage'
 import { TransactionsPage } from './features/transactions/TransactionsPage'
 import { HomePage } from './features/home/HomePage'
+import { BudgetPage } from './features/budget/BudgetPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { DEFAULT_WALLET_SETTING_KEY } from './lib/settings'
 
@@ -102,15 +103,14 @@ function App() {
             onOpenWallets={() => setPage('Dompet')}
             defaultWalletId={defaultWalletId}
           />
+        ) : page === 'Budget' ? (
+          <BudgetPage />
         ) : page === 'Home' ? (
           <HomePage
             defaultWalletId={defaultWalletId}
             onOpenWallets={() => setPage('Dompet')}
+            onOpenBudget={() => setPage('Budget')}
           />
-        ) : page !== 'Pengaturan' ? (
-          <EmptyState title={`Belum ada ${pageLabels[page].toLowerCase()}`}>
-            Mulai dari Pengaturan untuk membuat atau memulihkan backup.
-          </EmptyState>
         ) : (
           <div className="feature-page">
             <SettingsPage
