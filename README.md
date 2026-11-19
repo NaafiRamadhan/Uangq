@@ -1,0 +1,2 @@
+# Uangq
+Sistem Pencatatan keuangan
