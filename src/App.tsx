@@ -6,20 +6,23 @@ import { WalletsPage } from './features/wallets/WalletsPage'
 import { TransactionsPage } from './features/transactions/TransactionsPage'
 import { HomePage } from './features/home/HomePage'
 import { BudgetPage } from './features/budget/BudgetPage'
+import { ReportPage } from './features/reports/ReportPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { DEFAULT_WALLET_SETTING_KEY } from './lib/settings'
 
-type Page = 'Home' | 'Dompet' | 'Transaksi' | 'Budget' | 'Pengaturan'
+type Page = 'Home' | 'Dompet' | 'Transaksi' | 'Budget' | 'Laporan' | 'Pengaturan'
+type NavigationPage = Exclude<Page, 'Laporan'>
 
-const pages: Page[] = ['Home', 'Dompet', 'Transaksi', 'Budget', 'Pengaturan']
+const pages: NavigationPage[] = ['Home', 'Dompet', 'Transaksi', 'Budget', 'Pengaturan']
 const pageLabels: Record<Page, string> = {
   Home: 'Beranda',
   Dompet: 'Dompet',
   Transaksi: 'Transaksi',
   Budget: 'Budget',
+  Laporan: 'Laporan',
   Pengaturan: 'Pengaturan',
 }
-const pageIcons = {
+const pageIcons: Record<NavigationPage, 'home' | 'wallet' | 'transactions' | 'budget' | 'settings'> = {
   Home: 'home',
   Dompet: 'wallet',
   Transaksi: 'transactions',
@@ -35,11 +38,17 @@ function settingString(value: unknown): string {
 
 function App() {
   const [page, setPage] = useState<Page>('Home')
+  const [reportReturnPage, setReportReturnPage] = useState<'Home' | 'Budget'>('Home')
   const [message, setMessage] = useState('')
   const [settingsMessage, setSettingsMessage] = useState('')
   const [importPreview, setImportPreview] = useState<BackupFile | null>(null)
   const [defaultWalletId, setDefaultWalletId] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
+
+  function openReport(fromPage: 'Home' | 'Budget') {
+    setReportReturnPage(fromPage)
+    setPage('Laporan')
+  }
 
   useEffect(() => {
     void seedDatabase()
@@ -104,13 +113,16 @@ function App() {
             defaultWalletId={defaultWalletId}
           />
         ) : page === 'Budget' ? (
-          <BudgetPage />
+          <BudgetPage onOpenReport={() => openReport('Budget')} />
         ) : page === 'Home' ? (
           <HomePage
             defaultWalletId={defaultWalletId}
             onOpenWallets={() => setPage('Dompet')}
             onOpenBudget={() => setPage('Budget')}
+            onOpenReport={() => openReport('Home')}
           />
+        ) : page === 'Laporan' ? (
+          <ReportPage onBack={() => setPage(reportReturnPage)} />
         ) : (
           <div className="feature-page">
             <SettingsPage
@@ -155,7 +167,7 @@ function App() {
         items={pages.map((item) => ({
           label: pageLabels[item],
           icon: pageIcons[item],
-          current: item === page,
+          current: item === (page === 'Laporan' ? reportReturnPage : page),
           onClick: () => setPage(item),
         }))}
       />

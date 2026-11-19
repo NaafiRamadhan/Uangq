@@ -30,7 +30,7 @@ function displayMonth(month: string): string {
     .format(new Date(year, monthNumber - 1, 1))
 }
 
-export function BudgetPage() {
+export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
   const [month] = useState(currentMonthKey)
   const [budget, setBudget] = useState<Budget | null>(null)
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
@@ -185,6 +185,14 @@ export function BudgetPage() {
       {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       {calculationError && <p className="form-message form-message--error" role="alert">{calculationError}</p>}
       {message && <p className="form-message" role="status">{message}</p>}
+      <Button
+        variant="secondary"
+        className="button--compact report-entry"
+        type="button"
+        onClick={onOpenReport}
+      >
+        Lihat laporan
+      </Button>
 
       <Card className="budget-config-card">
         <p className="section-kicker">BUDGET BULANAN</p>

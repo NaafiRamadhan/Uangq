@@ -78,10 +78,12 @@ export function HomePage({
   defaultWalletId,
   onOpenWallets,
   onOpenBudget,
+  onOpenReport,
 }: {
   defaultWalletId: string
   onOpenWallets: () => void
   onOpenBudget: () => void
+  onOpenReport: () => void
 }) {
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -159,6 +161,14 @@ export function HomePage({
         defaultWalletId={defaultWalletId}
         onSaved={() => loadHome(false)}
       />
+      <Button
+        variant="secondary"
+        className="button--compact report-entry"
+        type="button"
+        onClick={onOpenReport}
+      >
+        Lihat laporan
+      </Button>
 
       {wallets.every((wallet) => wallet.archived) && (
         <Card className="home-wallet-prompt">
