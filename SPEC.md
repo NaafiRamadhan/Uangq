@@ -19,6 +19,7 @@ Tiru **konsep dan alur** saja. Jangan menyalin desain, teks, atau aset visual me
 
 Login/akun, sinkronisasi antar perangkat, bot Telegram, AI Advisor, Scan Struk, Utang, Investasi,
 Aset, Goals, paket berbayar, notifikasi push, multi-bahasa (cukup Bahasa Indonesia).
+Widget Home Screen dan Siri Shortcuts native (memerlukan aplikasi native dan tidak bisa dibuat sebagai PWA).
 
 ## 3. Stack (tetap, jangan ganti tanpa alasan kuat)
 
@@ -27,6 +28,7 @@ Aset, Goals, paket berbayar, notifikasi push, multi-bahasa (cukup Bahasa Indones
 - vite-plugin-pwa (manifest + service worker, mode offline)
 - Tailwind CSS
 - Vitest untuk unit test (wajib untuk parser dan logika uang)
+- Tanpa library grafik; gunakan bar CSS atau SVG sederhana.
 - Tanpa backend. Tanpa API key apa pun di kode.
 
 ## 4. Aturan teknis wajib
@@ -98,7 +100,7 @@ Kategori awal (seed, bisa diubah pengguna):
 - Impor: validasi struktur dan `schemaVersion` dulu, tampilkan ringkasan (jumlah dompet/transaksi),
   minta konfirmasi, lalu **ganti seluruh data** dalam satu transaksi database (gagal = tidak ada yang berubah).
 - Tolak file dengan `schemaVersion` lebih baru dari yang dikenal app. Sediakan fungsi migrasi untuk versi lama.
-- Ekspor tambahan: CSV transaksi (opsional, fase 4).
+- Ekspor tambahan: CSV transaksi (opsional, fase 5).
 - Pengingat backup: jika `lastBackupAt` lebih dari 30 hari lalu, tampilkan banner di Home.
 
 ## 8. Parser input cepat (`src/lib/parser.ts`, tanpa AI)
@@ -150,8 +152,17 @@ Contoh test minimal (harus ada di `parser.test.ts`):
 - Home: sisa budget hari ini (sisa budget bulan ÷ sisa hari), progres per kelompok, transaksi terbaru, kalender aktivitas bulanan.
 - **Selesai jika:** angka di Home cocok dengan perhitungan manual untuk minimal 3 skenario di unit test.
 
-### Fase 4 — Polesan
+### Fase 4 — Analitik ringan
+- Halaman Laporan dapat dibuka dari Beranda dan Budget, tanpa tab baru di navigasi bawah.
+- Tampilkan pengeluaran per kategori untuk bulan terpilih (bar horizontal dan persentase), tren 6 bulan terakhir (total pengeluaran dan pemasukan per bulan), perbandingan bulan terpilih dengan bulan sebelumnya (selisih rupiah dan persen), serta ringkasan bulan terpilih (rata-rata pengeluaran per hari, hari terboros, jumlah transaksi).
+- Semua perhitungan berada di `src/lib/analytics.ts` sebagai fungsi murni dengan unit test, termasuk bulan tanpa data dan pergantian tahun.
+- **Selesai jika:** angka di Laporan cocok dengan hitungan manual untuk minimal 3 skenario.
+
+### Fase 5 — Polesan
 - Mode gelap/terang, banner pengingat backup, ekspor CSV, prompt install PWA yang sopan, halaman kosong yang ramah.
+- Tambahkan catatan privasi di Pengaturan bahwa seluruh data tersimpan di perangkat ini saja.
+- URL `?tambah=1` langsung memfokuskan kolom input cepat.
+- Tambahkan shortcut manifest PWA bernama “Tambah transaksi” dengan URL `/?tambah=1`.
 - Uji manual di Android (Chrome) dan, jika perangkat tersedia, iOS (Safari, setelah ditambahkan ke Home Screen).
 
 ## 10. Prompt untuk agent (salin satu per sesi)
@@ -169,7 +180,10 @@ Contoh test minimal (harus ada di `parser.test.ts`):
 > Baca SPEC.md bagian 4, 6, dan Fase 3. Tulis rumus budget sebagai fungsi murni di `src/lib/budget.ts` dengan test untuk minimal 3 skenario. Baru bangun UI-nya.
 
 **Fase 4**
-> Baca SPEC.md Fase 4. Audit seluruh kode untuk API yang tidak didukung Safari iOS dan laporkan sebelum memperbaikinya.
+> Baca SPEC.md bagian 4, 6, dan Fase 4. Bangun halaman Laporan yang dibuka dari Beranda dan Budget tanpa tab navigasi baru. Implementasikan semua perhitungan analitik sebagai fungsi murni di `src/lib/analytics.ts`; uji bulan tanpa data, pergantian tahun, dan minimal 3 skenario yang dicocokkan dengan hitungan manual. Gunakan bar CSS atau SVG sederhana, tanpa library grafik.
+
+**Fase 5**
+> Baca SPEC.md Fase 5. Kerjakan polesan saja: tambahkan catatan privasi di Pengaturan, fokuskan input cepat saat URL `?tambah=1` dibuka, dan tambahkan shortcut manifest PWA “Tambah transaksi” ke `/?tambah=1`. Audit seluruh kode untuk API yang tidak didukung Safari iOS dan laporkan sebelum memperbaikinya.
 
 ## 11. Aturan kerja untuk agent
 
@@ -188,3 +202,10 @@ Contoh test minimal (harus ada di `parser.test.ts`):
 - [ ] Saldo tiap dompet dicocokkan dengan saldo asli.
 - [ ] Kebiasaan backup bulanan sudah diatur.
 - [ ] Sebelum pindah ke iPhone: ekspor backup, pasang app ke Home Screen iPhone **dulu**, baru impor.
+
+## 13. Referensi
+
+- **Budggt:** referensi konsep alur dompet, transaksi, budget 50/30/20, dan laporan.
+- **Inpenso** ([github.com/VintusS/Inpenso](https://github.com/VintusS/Inpenso)): aplikasi iOS native berlisensi MIT; referensi konsep analitik per kategori/bulan/tren, budget bulanan, dan data yang tetap tersimpan di perangkat.
+
+Hanya konsep yang dirujuk dari referensi tersebut; tidak ada kode yang disalin.
