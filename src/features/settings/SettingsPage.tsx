@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { db, type Wallet } from '../../db/schema'
-import { Button, Card } from '../../components/ui'
+import { Button, Card, EmptyState } from '../../components/ui'
 
 export function SettingsPage({
   defaultWalletId,
   onDefaultWalletChange,
+  onOpenWallets,
   message,
 }: {
   defaultWalletId: string
   onDefaultWalletChange: (walletId: string) => void
+  onOpenWallets: () => void
   message: string
 }) {
   const [wallets, setWallets] = useState<Wallet[]>([])
@@ -33,6 +35,42 @@ export function SettingsPage({
     }
   }, [])
 
+  if (loading) {
+    return (
+      <Card className="settings-card">
+        <p className="feature-description" role="status">Memuat dompet…</p>
+      </Card>
+    )
+  }
+
+  if (wallets.length === 0) {
+    return (
+      <>
+        {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+        {message && <p className="status-message" role="status">{message}</p>}
+        <EmptyState
+          title="Tambahkan dompet untuk input cepat"
+          action={(
+            <div className="settings-empty-actions">
+              <Button type="button" onClick={onOpenWallets}>Buat dompet</Button>
+              {defaultWalletId && (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => onDefaultWalletChange('')}
+                >
+                  Hapus dompet default
+                </Button>
+              )}
+            </div>
+          )}
+        >
+          Belum ada dompet aktif untuk dipilih. Buat dompet agar input cepat bisa menyiapkan transaksi.
+        </EmptyState>
+      </>
+    )
+  }
+
   return (
     <Card className="settings-card">
       <p className="section-kicker">PREFERENSI</p>
@@ -45,20 +83,16 @@ export function SettingsPage({
         <select
           className="input-control"
           value={wallets.some(({ id }) => id === defaultWalletId) ? defaultWalletId : ''}
-          disabled={loading || wallets.length === 0}
+          disabled={wallets.length === 0}
           onChange={(event) => onDefaultWalletChange(event.target.value)}
         >
           <option value="">Belum dipilih</option>
           {wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name}</option>)}
         </select>
       </label>
-      {loading && <p className="backup-note" role="status">Memuat dompet…</p>}
-      {!loading && wallets.length === 0 && (
-        <p className="backup-note">Buat dompet aktif terlebih dahulu untuk memilih dompet default.</p>
-      )}
       {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       {message && <p className="status-message" role="status">{message}</p>}
-      {!loading && wallets.length > 0 && !defaultWalletId && (
+      {!defaultWalletId && (
         <p className="backup-note">Tanpa pilihan ini, dompet perlu dipilih pada setiap draf sebelum disimpan.</p>
       )}
       {defaultWalletId && !wallets.some(({ id }) => id === defaultWalletId) && (

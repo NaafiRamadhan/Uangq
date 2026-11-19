@@ -1,7 +1,8 @@
 import { useId, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes } from 'react'
 import type { ReactNode } from 'react'
+import type { EffectiveTheme, ThemeMode } from '../lib/theme'
 
-type IconName = 'home' | 'wallet' | 'transactions' | 'budget' | 'settings'
+type IconName = 'home' | 'wallet' | 'transactions' | 'budget' | 'settings' | 'sun' | 'moon'
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
@@ -10,6 +11,8 @@ function Icon({ name }: { name: IconName }) {
     transactions: <><path d="M7 7h13l-3-3M17 17H4l3 3" /><path d="M20 7a7 7 0 0 1-7 7M4 17a7 7 0 0 1 7-7" /></>,
     budget: <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 16v-4M12 16V8M16 16v-6" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.7-1l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 2Z" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>,
+    moon: <path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" />,
   }
 
   return (
@@ -92,11 +95,45 @@ export function EmptyState({
   )
 }
 
-export function PageHeader({ title }: { title: string }) {
+export function PageHeader({
+  title,
+  themeMode,
+  effectiveTheme,
+  onCycleTheme,
+}: {
+  title: string
+  themeMode: ThemeMode
+  effectiveTheme: EffectiveTheme
+  onCycleTheme: () => void
+}) {
+  const modeLabels: Record<ThemeMode, string> = {
+    system: `Sistem (${effectiveTheme === 'dark' ? 'Gelap' : 'Terang'})`,
+    light: 'Terang',
+    dark: 'Gelap',
+  }
+  const nextModeLabels: Record<ThemeMode, string> = {
+    system: 'Terang',
+    light: 'Gelap',
+    dark: 'Sistem',
+  }
+  const ariaLabel = `Tema saat ini: ${modeLabels[themeMode]}. Ketuk untuk beralih ke ${nextModeLabels[themeMode]}.`
+
   return (
     <header className="page-header">
-      <p className="page-header__brand">UANGQ</p>
-      <h1>{title}</h1>
+      <div className="page-header__title">
+        <p className="page-header__brand">UANGQ</p>
+        <h1>{title}</h1>
+      </div>
+      <Button
+        variant="secondary"
+        className="theme-toggle"
+        type="button"
+        aria-label={ariaLabel}
+        title={ariaLabel}
+        onClick={onCycleTheme}
+      >
+        <Icon name={effectiveTheme === 'dark' ? 'moon' : 'sun'} />
+      </Button>
     </header>
   )
 }

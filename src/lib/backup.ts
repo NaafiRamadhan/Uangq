@@ -1,5 +1,7 @@
 import type { Budget, BudgetItem, Category, Setting, Transaction, Wallet } from '../db/schema'
 import { db } from '../db/schema'
+import { LAST_BACKUP_SETTING_KEY } from './settings'
+import { downloadBlob } from './download'
 
 export const BACKUP_SCHEMA_VERSION = 1
 
@@ -62,16 +64,20 @@ export async function readBackupData(): Promise<BackupData> {
   }
 }
 
-export async function exportBackup() {
-  const backup = createBackup(await readBackupData())
+export async function exportBackup(): Promise<string> {
+  const exportedAt = new Date().toISOString()
+  const data = await readBackupData()
+  const backup = createBackup({
+    ...data,
+    settings: [
+      ...data.settings.filter(({ key }) => key !== LAST_BACKUP_SETTING_KEY),
+      { key: LAST_BACKUP_SETTING_KEY, value: exportedAt },
+    ],
+  }, exportedAt)
   const date = backup.exportedAt.slice(0, 10)
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `uangq-backup-${date}.json`
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadBlob(blob, `uangq-backup-${date}.json`)
+  return exportedAt
 }
 
 export async function importBackup(backup: BackupFile) {

@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { db, type Category, type Transaction, type Wallet } from '../../db/schema'
 import { parseQuickEntry, type ParsedQuickEntry } from '../../lib/parser'
 import { Button, Card, Input } from '../../components/ui'
@@ -41,11 +41,15 @@ export function QuickEntry({
   wallets,
   categories,
   defaultWalletId,
+  focusOnMount = false,
+  onInitialFocus,
   onSaved,
 }: {
   wallets: readonly Wallet[]
   categories: readonly Category[]
   defaultWalletId: string
+  focusOnMount?: boolean
+  onInitialFocus?: () => void
   onSaved?: () => void | Promise<void>
 }) {
   const [text, setText] = useState('')
@@ -54,6 +58,10 @@ export function QuickEntry({
   const [message, setMessage] = useState('')
   const activeWallets = wallets.filter((wallet) => !wallet.archived)
   const activeCategories = categories.filter((category) => !category.archived)
+
+  useEffect(() => {
+    if (focusOnMount) onInitialFocus?.()
+  }, [focusOnMount, onInitialFocus])
 
   function createDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -135,6 +143,7 @@ export function QuickEntry({
           onChange={(event) => setText(event.target.value)}
           placeholder="Misalnya: gaji 5jt bca"
           autoComplete="off"
+          autoFocus={focusOnMount}
         />
         <Button type="submit">Buat draf</Button>
       </form>

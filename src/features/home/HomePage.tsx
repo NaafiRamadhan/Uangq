@@ -6,7 +6,9 @@ import {
   type BudgetGroup,
   type BudgetOverview,
 } from '../../lib/budget'
+import { shouldShowBackupReminder } from '../../lib/backupReminder'
 import { formatRupiah } from '../../lib/money'
+import { LAST_BACKUP_SETTING_KEY } from '../../lib/settings'
 import { Button, Card, EmptyState } from '../../components/ui'
 import { QuickEntry } from '../transactions/QuickEntry'
 import { BudgetProgress } from '../budget/BudgetProgress'
@@ -79,17 +81,24 @@ export function HomePage({
   onOpenWallets,
   onOpenBudget,
   onOpenReport,
+  onOpenSettings,
+  focusQuickEntry,
+  onQuickEntryFocused,
 }: {
   defaultWalletId: string
   onOpenWallets: () => void
   onOpenBudget: () => void
   onOpenReport: () => void
+  onOpenSettings: () => void
+  focusQuickEntry: boolean
+  onQuickEntryFocused: () => void
 }) {
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [budget, setBudget] = useState<Budget | null>(null)
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
+  const [lastBackupAt, setLastBackupAt] = useState<unknown>()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
@@ -98,18 +107,20 @@ export function HomePage({
     const month = currentMonthKey(new Date())
     try {
       await seedDatabase()
-      const [nextWallets, nextCategories, nextTransactions, nextBudget, nextItems] = await Promise.all([
+      const [nextWallets, nextCategories, nextTransactions, nextBudget, nextItems, lastBackupSetting] = await Promise.all([
         db.wallets.toArray(),
         db.categories.toArray(),
         db.transactions.toArray(),
         db.budgets.where('month').equals(month).first(),
         db.budgetItems.where('month').equals(month).toArray(),
+        db.settings.get(LAST_BACKUP_SETTING_KEY),
       ])
       setWallets(nextWallets)
       setCategories(nextCategories)
       setTransactions(nextTransactions)
       setBudget(nextBudget ?? null)
       setBudgetItems(nextItems)
+      setLastBackupAt(lastBackupSetting?.value)
       setError('')
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Data Beranda gagal dimuat.')
@@ -150,15 +161,35 @@ export function HomePage({
     .slice(0, 5)
   const activityDates = getMonthActivityDates(month, transactions)
   const monthTransactions = transactions.filter((transaction) => transaction.date.slice(0, 7) === month)
+  const showBackupReminder = shouldShowBackupReminder(lastBackupAt)
 
   return (
     <div className="feature-page home-page">
       {error && <p className="form-message form-message--error" role="alert">{error}</p>}
       {calculationError && <p className="form-message form-message--error" role="alert">{calculationError}</p>}
+      {showBackupReminder && (
+        <Card className="backup-reminder">
+          <p className="section-kicker">BACKUP MANUAL</p>
+          <h2>{lastBackupAt ? 'Sudah waktunya memperbarui backup' : 'Buat backup pertamamu'}</h2>
+          <p className="backup-note">
+            Simpan salinan data secara manual agar tetap aman jika perangkat hilang atau rusak.
+          </p>
+          <Button
+            variant="secondary"
+            className="button--compact"
+            type="button"
+            onClick={onOpenSettings}
+          >
+            Buka Pengaturan
+          </Button>
+        </Card>
+      )}
       <QuickEntry
         wallets={wallets}
         categories={categories}
         defaultWalletId={defaultWalletId}
+        focusOnMount={focusQuickEntry}
+        onInitialFocus={onQuickEntryFocused}
         onSaved={() => loadHome(false)}
       />
       <Button
@@ -212,12 +243,14 @@ export function HomePage({
             </div>
           </Card>
 
-          <Card className="home-recent-card">
-            <p className="section-kicker">TERBARU</p>
-            <h2>Transaksi terbaru</h2>
-            {recentTransactions.length === 0 ? (
-              <p className="backup-note">Belum ada transaksi.</p>
-            ) : (
+          {recentTransactions.length === 0 ? (
+            <EmptyState title="Belum ada transaksi terbaru">
+              Catat transaksi pertamamu untuk melihat aktivitas keuangan di sini.
+            </EmptyState>
+          ) : (
+            <Card className="home-recent-card">
+              <p className="section-kicker">TERBARU</p>
+              <h2>Transaksi terbaru</h2>
               <div className="home-recent-list">
                 {recentTransactions.map((transaction) => (
                   <div className="home-recent-row" key={transaction.id}>
@@ -234,8 +267,8 @@ export function HomePage({
                   </div>
                 ))}
               </div>
-            )}
-          </Card>
+            </Card>
+          )}
 
           <Card className="home-calendar-card">
             <p className="section-kicker">AKTIVITAS BULANAN</p>

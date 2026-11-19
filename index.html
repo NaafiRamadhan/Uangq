@@ -3,9 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b7464" />
+    <meta id="theme-color-meta" name="theme-color" content="#f4f7f6" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <title>Uangq</title>
+    <script>
+      try {
+        const theme = localStorage.getItem('uangq.themeMode')
+        document.documentElement.dataset.theme =
+          theme === 'light' || theme === 'dark' ? theme : 'system'
+      } catch {
+        document.documentElement.dataset.theme = 'system'
+      }
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      const isDark = document.documentElement.dataset.theme === 'dark' ||
+        (document.documentElement.dataset.theme === 'system' && prefersDark)
+      document.getElementById('theme-color-meta').content = isDark ? '#0d1413' : '#f4f7f6'
+    </script>
   </head>
   <body>
     <div id="root"></div>
