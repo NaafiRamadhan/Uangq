@@ -20,6 +20,8 @@ export function BudgetProgress({
   percentage: number
   status: BudgetProgressStatus
 }) {
+  const visualPercentage = Math.min(100, Math.max(0, percentage))
+
   return (
     <div className={`budget-progress budget-progress--${status}`}>
       <div className="budget-progress__heading">
@@ -32,10 +34,10 @@ export function BudgetProgress({
         aria-label={`Progres ${label}`}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={percentage}
+        aria-valuenow={visualPercentage}
         aria-valuetext={`${percentage}% dari batas`}
       >
-        <span className="budget-progress__fill" style={{ width: `${percentage}%` }} />
+        <span className="budget-progress__fill" style={{ width: `${visualPercentage}%` }} />
       </div>
       <p className="budget-progress__amounts">
         <span>{formatRupiah(spent)} terpakai</span>

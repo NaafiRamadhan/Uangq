@@ -1,4 +1,11 @@
-import type { Category, Transaction } from '../db/schema'
+import type { Budget, BudgetItem, Category, Transaction } from '../db/schema'
+import {
+  calculateBudgetOverview,
+  getMonthActivityDates,
+  type BudgetOverview,
+} from './budget'
+
+export const significantCategoryIncreaseThreshold = 100_000
 
 export type CategorySpending = {
   categoryId: string | null
@@ -11,6 +18,25 @@ export type MonthlyTrend = {
   month: string
   expense: number
   income: number
+}
+
+export type CategorySpendingChange = {
+  categoryId: string | null
+  categoryName: string
+  currentAmount: number
+  previousAmount: number
+  difference: number
+  percentageChange: number | null
+  isNew: boolean
+  isSignificantIncrease: boolean
+}
+
+export type TrendChartGeometry = {
+  xPositions: number[]
+  expenseLine: string
+  expenseArea: string
+  incomeLine: string
+  incomeArea: string
 }
 
 export type MonthlyAnalytics = {
@@ -26,11 +52,145 @@ export type MonthlyAnalytics = {
     difference: number
     percentageChange: number | null
   }
+  insights: {
+    largestCategory: CategorySpending | null
+    categoryChanges: CategorySpendingChange[]
+    projectedExpense: number | null
+  }
   summary: {
     averagePerDay: number
     busiestDay: { date: string; amount: number } | null
     transactionCount: number
   }
+}
+
+export function projectMonthEndExpense(totalExpense: number, month: string, today: Date): number | null {
+  validateMonth(month)
+  if (!Number.isSafeInteger(totalExpense) || totalExpense < 0) {
+    throw new RangeError('Total pengeluaran harus berupa bilangan bulat rupiah nonnegatif.')
+  }
+  if (Number.isNaN(today.getTime())) throw new RangeError('Tanggal acuan laporan tidak valid.')
+
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  if (month > currentMonth) return null
+
+  const days = daysInMonth(month)
+  const elapsedDays = month === currentMonth ? today.getDate() : days
+  return toSafeNumber(
+    BigInt(totalExpense) * BigInt(days) / BigInt(elapsedDays),
+    'Proyeksi pengeluaran akhir bulan',
+  )
+}
+
+export function calculateReportBudgetProgress({
+  month,
+  budget,
+  budgetItems,
+  categories,
+  transactions,
+  today = new Date(),
+}: {
+  month: string
+  budget: Budget | null
+  budgetItems: readonly BudgetItem[]
+  categories: readonly Pick<Category, 'id' | 'group'>[]
+  transactions: readonly Transaction[]
+  today?: Date
+}): BudgetOverview | null {
+  validateMonth(month)
+  if (!budget) return null
+  if (budget.month !== month) throw new RangeError('Budget tidak sesuai dengan bulan laporan.')
+
+  return calculateBudgetOverview({ budget, budgetItems, categories, transactions, today })
+}
+
+export function calculateMonthlyActivityDates(month: string, transactions: readonly Transaction[]): string[] {
+  return getMonthActivityDates(month, transactions)
+}
+
+export function calculateTrendChartGeometry(trends: readonly MonthlyTrend[]): TrendChartGeometry {
+  const width = 360
+  const left = 24
+  const right = 336
+  const top = 18
+  const baseline = 156
+  const maximum = Math.max(0, ...trends.flatMap(({ expense, income }) => [expense, income]))
+
+  for (const trend of trends) {
+    if (
+      !Number.isSafeInteger(trend.expense) || trend.expense < 0 ||
+      !Number.isSafeInteger(trend.income) || trend.income < 0
+    ) {
+      throw new RangeError('Nilai tren harus berupa bilangan bulat rupiah nonnegatif.')
+    }
+  }
+
+  const xPositions = trends.map((_, index) => (
+    trends.length < 2 ? width / 2 : left + index * (right - left) / (trends.length - 1)
+  ))
+  const points = trends.map((trend, index) => ({
+    x: xPositions[index],
+    expenseY: baseline - (maximum === 0 ? 0 : trend.expense / maximum * (baseline - top)),
+    incomeY: baseline - (maximum === 0 ? 0 : trend.income / maximum * (baseline - top)),
+  }))
+  const path = (key: 'expenseY' | 'incomeY') => points
+    .map(({ x, [key]: y }, index) => `${index === 0 ? 'M' : 'L'} ${coordinate(x)} ${coordinate(y)}`)
+    .join(' ')
+  const area = (key: 'expenseY' | 'incomeY') => {
+    if (!points.length) return ''
+    return [
+      `M ${coordinate(points[0].x)} ${baseline}`,
+      ...points.map(({ x, [key]: y }) => `L ${coordinate(x)} ${coordinate(y)}`),
+      `L ${coordinate(points[points.length - 1].x)} ${baseline} Z`,
+    ].join(' ')
+  }
+
+  return {
+    xPositions,
+    expenseLine: path('expenseY'),
+    expenseArea: area('expenseY'),
+    incomeLine: path('incomeY'),
+    incomeArea: area('incomeY'),
+  }
+}
+
+function calculateCategorySpendingChanges({
+  current,
+  previous,
+  categoryNames,
+}: {
+  current: ReadonlyMap<string | null, bigint>
+  previous: ReadonlyMap<string | null, bigint>
+  categoryNames: ReadonlyMap<string, string>
+}): CategorySpendingChange[] {
+  const categoryIds = new Set([...current.keys(), ...previous.keys()])
+  return Array.from(categoryIds, (categoryId) => {
+    const currentAmount = toSafeNumber(current.get(categoryId) ?? 0n, 'Pengeluaran kategori bulan ini')
+    const previousAmount = toSafeNumber(previous.get(categoryId) ?? 0n, 'Pengeluaran kategori bulan lalu')
+    const difference = currentAmount - previousAmount
+    const percentageChange = previousAmount === 0
+      ? currentAmount === 0 ? 0 : null
+      : difference / previousAmount * 100
+
+    return {
+      categoryId,
+      categoryName: categoryId === null ? 'Tanpa kategori' : categoryNames.get(categoryId) ?? 'Tanpa kategori',
+      currentAmount,
+      previousAmount,
+      difference,
+      percentageChange,
+      isNew: previousAmount === 0 && currentAmount > 0,
+      isSignificantIncrease: percentageChange !== null &&
+        percentageChange > 50 &&
+        difference >= significantCategoryIncreaseThreshold,
+    }
+  })
+    .filter(({ currentAmount, previousAmount }) => currentAmount > 0 || previousAmount > 0)
+    .sort((left, right) => right.difference - left.difference || left.categoryName.localeCompare(right.categoryName, 'id'))
+}
+
+function coordinate(value: number): string {
+  return Number(value.toFixed(2)).toString()
 }
 
 export type DailyExpensePoint = {
@@ -48,6 +208,7 @@ type MonthlyAnalyticsInput = {
   month: string
   transactions: readonly Transaction[]
   categories: readonly Pick<Category, 'id' | 'name'>[]
+  today?: Date
 }
 
 type MonthlyTotals = {
@@ -95,15 +256,20 @@ export function calculateMonthlyAnalytics({
   month,
   transactions,
   categories,
+  today = new Date(),
 }: MonthlyAnalyticsInput): MonthlyAnalytics {
   validateMonth(month)
+  if (Number.isNaN(today.getTime())) throw new RangeError('Tanggal acuan laporan tidak valid.')
 
-  const months = Array.from({ length: 6 }, (_, index) => shiftMonth(month, index - 5))
-  const monthSet = new Set(months)
+  const allMonths = Array.from({ length: 7 }, (_, index) => shiftMonth(month, index - 6))
+  const trendMonths = allMonths.slice(1)
+  const previousMonth = shiftMonth(month, -1)
+  const monthSet = new Set(allMonths)
   const totals = new Map<string, MonthlyTotals>(
-    months.map((item) => [item, { expense: 0n, income: 0n }]),
+    allMonths.map((item) => [item, { expense: 0n, income: 0n }]),
   )
   const categorySpending = new Map<string | null, bigint>()
+  const previousCategorySpending = new Map<string | null, bigint>()
   const categoryNames = new Map(categories.map(({ id, name }) => [id, name]))
   const daySpending = new Map<string, bigint>()
   let transactionCount = 0
@@ -128,18 +294,20 @@ export function calculateMonthlyAnalytics({
     }
 
     monthTotals.expense += amount
-    if (transactionMonth === month) {
+    if (transactionMonth === month || transactionMonth === previousMonth) {
       const categoryId = transaction.categoryId && categoryNames.has(transaction.categoryId)
         ? transaction.categoryId
         : null
-      categorySpending.set(categoryId, (categorySpending.get(categoryId) ?? 0n) + amount)
-      daySpending.set(transaction.date, (daySpending.get(transaction.date) ?? 0n) + amount)
+      const monthSpending = transactionMonth === month ? categorySpending : previousCategorySpending
+      monthSpending.set(categoryId, (monthSpending.get(categoryId) ?? 0n) + amount)
+      if (transactionMonth === month) {
+        daySpending.set(transaction.date, (daySpending.get(transaction.date) ?? 0n) + amount)
+      }
     }
   }
 
   const currentTotals = totals.get(month)
   if (!currentTotals) throw new Error(`Data bulan ${month} tidak tersedia.`)
-  const previousMonth = shiftMonth(month, -1)
   const previousTotals = totals.get(previousMonth) ?? { expense: 0n, income: 0n }
   const totalExpense = toSafeNumber(currentTotals.expense, 'Total pengeluaran')
   const totalIncome = toSafeNumber(currentTotals.income, 'Total pemasukan')
@@ -160,6 +328,11 @@ export function calculateMonthlyAnalytics({
   }).sort((left, right) => (
     right.amount - left.amount || left.categoryName.localeCompare(right.categoryName, 'id')
   ))
+  const categoryChanges = calculateCategorySpendingChanges({
+    current: categorySpending,
+    previous: previousCategorySpending,
+    categoryNames,
+  })
 
   const busiestDay = Array.from(daySpending.entries())
     .sort(([leftDate, leftAmount], [rightDate, rightAmount]) => {
@@ -167,7 +340,7 @@ export function calculateMonthlyAnalytics({
       return leftDate.localeCompare(rightDate)
     })[0]
 
-  const trends = months.map((trendMonth) => {
+  const trends = trendMonths.map((trendMonth) => {
     const monthTotals = totals.get(trendMonth)
     if (!monthTotals) throw new Error(`Data bulan ${trendMonth} tidak tersedia.`)
     return {
@@ -176,6 +349,10 @@ export function calculateMonthlyAnalytics({
       income: toSafeNumber(monthTotals.income, `Pemasukan ${trendMonth}`),
     }
   })
+  const averagePerDay = toSafeNumber(
+    currentTotals.expense / BigInt(daysInMonth(month)),
+    'Rata-rata pengeluaran harian',
+  )
 
   return {
     month,
@@ -190,11 +367,13 @@ export function calculateMonthlyAnalytics({
       difference,
       percentageChange,
     },
+    insights: {
+      largestCategory: categoryResults[0] ?? null,
+      categoryChanges,
+      projectedExpense: projectMonthEndExpense(totalExpense, month, today),
+    },
     summary: {
-      averagePerDay: toSafeNumber(
-        currentTotals.expense / BigInt(daysInMonth(month)),
-        'Rata-rata pengeluaran harian',
-      ),
+      averagePerDay,
       busiestDay: busiestDay
         ? { date: busiestDay[0], amount: toSafeNumber(busiestDay[1], 'Pengeluaran harian tertinggi') }
         : null,

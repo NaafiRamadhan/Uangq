@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { Category, Transaction } from '../db/schema'
-import { calculateMonthlyAnalytics, calculateSevenDayExpenseSeries } from './analytics'
+import type { Budget, BudgetItem, Category, Transaction } from '../db/schema'
+import {
+  calculateMonthlyAnalytics,
+  calculateReportBudgetProgress,
+  calculateSevenDayExpenseSeries,
+  calculateTrendChartGeometry,
+} from './analytics'
 
 const categories: Pick<Category, 'id' | 'name'>[] = [
   { id: 'food', name: 'Makan' },
@@ -20,8 +25,8 @@ function transaction(overrides: Partial<Transaction> & Pick<Transaction, 'id'>):
   }
 }
 
-function report(month: string, transactions: readonly Transaction[]) {
-  return calculateMonthlyAnalytics({ month, transactions, categories })
+function report(month: string, transactions: readonly Transaction[], today?: Date) {
+  return calculateMonthlyAnalytics({ month, transactions, categories, today })
 }
 
 describe('calculateMonthlyAnalytics', () => {
@@ -39,6 +44,11 @@ describe('calculateMonthlyAnalytics', () => {
         previousExpense: 0,
         difference: 0,
         percentageChange: 0,
+      },
+      insights: {
+        largestCategory: null,
+        categoryChanges: [],
+        projectedExpense: 0,
       },
     })
 
@@ -66,6 +76,56 @@ describe('calculateMonthlyAnalytics', () => {
       { month: '2026-01', expense: 0, income: 40_000 },
     ])
     expect(result.monthComparison.previousMonth).toBe('2025-12')
+  })
+
+  it('compares categories across the year boundary', () => {
+    const result = report('2026-01', [
+      transaction({ id: 'dec-food', amount: 100_000, date: '2025-12-10' }),
+      transaction({ id: 'jan-food', amount: 250_000, date: '2026-01-05' }),
+    ], new Date(2026, 0, 10))
+
+    expect(result.monthComparison.previousMonth).toBe('2025-12')
+    expect(result.insights.categoryChanges).toEqual([
+      {
+        categoryId: 'food',
+        categoryName: 'Makan',
+        currentAmount: 250_000,
+        previousAmount: 100_000,
+        difference: 150_000,
+        percentageChange: 150,
+        isNew: false,
+        isSignificantIncrease: true,
+      },
+    ])
+    expect(result.trends.slice(-2).map(({ month }) => month)).toEqual(['2025-12', '2026-01'])
+  })
+
+  it('projects month-end expense from day one using whole rupiah', () => {
+    const result = report('2026-04', [
+      transaction({ id: 'first-day', amount: 1_001, date: '2026-04-01' }),
+    ], new Date(2026, 3, 1))
+
+    expect(result.insights.projectedExpense).toBe(30_030)
+  })
+
+  it('does not divide by zero for categories with no prior-month spending', () => {
+    const result = report('2026-04', [
+      transaction({ id: 'new-category-spend', amount: 200_000, date: '2026-04-02', categoryId: 'travel' }),
+      transaction({ id: 'previous-income', type: 'income', amount: 100_000, date: '2026-03-02', categoryId: 'travel' }),
+    ], new Date(2026, 3, 10))
+
+    expect(result.insights.categoryChanges).toEqual([
+      {
+        categoryId: 'travel',
+        categoryName: 'Transportasi',
+        currentAmount: 200_000,
+        previousAmount: 0,
+        difference: 200_000,
+        percentageChange: null,
+        isNew: true,
+        isSignificantIncrease: false,
+      },
+    ])
   })
 
   it('does not count transfers as income or expenses but includes them in transaction count', () => {
@@ -176,6 +236,54 @@ describe('calculateSevenDayExpenseSeries', () => {
     expect(result.days.every(({ amount }) => amount === 0)).toBe(true)
     expect(result.total).toBe(0)
     expect(result.average).toBe(0)
+  })
+
+  describe('calculateTrendChartGeometry', () => {
+    it('returns line and filled-area paths for each trend series', () => {
+      const geometry = calculateTrendChartGeometry([
+        { month: '2026-03', expense: 100, income: 50 },
+        { month: '2026-04', expense: 50, income: 100 },
+      ])
+
+      expect(geometry.xPositions).toEqual([24, 336])
+      expect(geometry.expenseLine).toContain('M 24')
+      expect(geometry.expenseArea).toMatch(/ Z$/)
+      expect(geometry.incomeLine).toContain('L 336')
+      expect(geometry.incomeArea).toMatch(/ Z$/)
+      expect(geometry.expenseLine).not.toContain('NaN')
+    })
+  })
+
+  describe('calculateReportBudgetProgress', () => {
+    it('returns group and category progress for the selected month', () => {
+      const budget: Budget = {
+        id: 'budget-april',
+        month: '2026-04',
+        total: 100_000,
+        splitNeeds: 50,
+        splitWants: 30,
+        splitSavings: 20,
+      }
+      const budgetItems: BudgetItem[] = [
+        { id: 'food-limit', month: '2026-04', categoryId: 'food', limit: 500 },
+      ]
+      const result = calculateReportBudgetProgress({
+        month: '2026-04',
+        budget,
+        budgetItems,
+        categories: [{ id: 'food', group: 'needs' }],
+        transactions: [transaction({ id: 'food-expense', amount: 1_000 })],
+        today: new Date(2026, 3, 10),
+      })
+
+      expect(result?.groups[0]).toMatchObject({ group: 'needs', limit: 50_000, spent: 1_000 })
+      expect(result?.categories[0]).toMatchObject({
+        categoryId: 'food',
+        limit: 500,
+        spent: 1_000,
+        status: 'over',
+      })
+    })
   })
 
   it('includes only expenses in the seven local calendar days, including across a year boundary', () => {

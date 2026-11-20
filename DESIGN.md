@@ -61,6 +61,17 @@ Navigasi bawah memakai ikon SVG, lingkaran tab aktif berbingkai inset agar tidak
 
 Beranda menampilkan total pengeluaran bulan ini dan progres terhadap budget, grafik pengeluaran tujuh hari dengan garis rata-rata dan ringkasan aksesibel, pengeluaran per kategori yang diurutkan dari terbesar, input cepat, lalu kartu backup data. Kalender aktivitas tersedia di Laporan untuk bulan yang dipilih. Konten dibatasi selebar 480px dan berada di tengah pada layar lebar; judul halaman hanya tampil sekali pada header.
 
+## Laporan
+
+Laporan memakai pemilih bulan di atas empat tab: **Ringkasan**, **Tren**, **Insight**, dan **Budget**; tidak menambah tab pada navigasi bawah. Tab memiliki target sentuh minimal 44px, indikator aktif berupa bingkai inset, serta dukungan tombol panah, Home, dan End. Semua tab tetap dapat dibaca pada lebar 360px dan mengikuti token warna tema.
+
+- **Ringkasan:** total pemasukan/pengeluaran, pengeluaran per kategori dengan bar dan persentase, serta kalender aktivitas bulan terpilih.
+- **Tren:** enam bulan berakhir pada bulan terpilih, dengan garis SVG untuk pengeluaran dan pemasukan serta area warna tipis di bawah garis. Legenda dan rincian angka per bulan melengkapi grafik; label aksesibel menyampaikan data tanpa bergantung pada warna.
+- **Insight:** kategori terbesar, rata-rata pengeluaran harian, hari terboros, proyeksi akhir bulan, dan perubahan nominal/persentase per kategori dibanding bulan sebelumnya. Kenaikan ditandai bila lebih dari 50% dan sedikitnya Rp100.000. Kategori yang belum memiliki pembanding bulan lalu menampilkan nominal dan status baru tanpa menghitung persentase dari nol.
+- **Budget:** progres budget per kelompok dan batas per kategori. Tautan menuju pengaturan budget tersedia sebagai aksi di halaman, bukan sebagai tab navigasi baru.
+
+Grafik menggunakan SVG sederhana tanpa library tambahan. Rupiah tetap bilangan bulat; proyeksi akhir bulan dibulatkan dengan memotong pecahan menuju nol. Bulan tanpa data menampilkan pesan ramah dan nilai nol, sedangkan pemilihan bulan mendatang tidak menampilkan proyeksi.
+
 ## Privasi dan hitung budget
 
 Data pengguna tetap tersimpan di perangkat ini saja. Backup tidak otomatis dan harus diekspor/disimpan secara manual.

@@ -281,7 +281,10 @@ function App({
             onQuickEntryFocused={handleQuickEntryFocused}
           />
         ) : page === 'Laporan' ? (
-          <ReportPage onBack={() => setPage(reportReturnPage)} />
+          <ReportPage
+            onBack={() => setPage(reportReturnPage)}
+            onOpenBudget={() => setPage('Budget')}
+          />
         ) : (
           <div className="feature-page">
             <SettingsPage
