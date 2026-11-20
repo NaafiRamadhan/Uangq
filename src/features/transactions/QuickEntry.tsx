@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { db, type Category, type Transaction, type Wallet } from '../../db/schema'
 import { parseQuickEntry, type ParsedQuickEntry } from '../../lib/parser'
-import { Button, Card, Input } from '../../components/ui'
+import { Button, Card, Input, MoneyInput } from '../../components/ui'
 
 function SelectField({
   label,
@@ -35,7 +35,7 @@ function isValidDate(value: string): boolean {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
-type EditableDraft = Omit<ParsedQuickEntry, 'amount'> & { amount: string }
+type EditableDraft = Omit<ParsedQuickEntry, 'amount'> & { amount: number | '' }
 
 export function QuickEntry({
   wallets,
@@ -77,15 +77,15 @@ export function QuickEntry({
       setError(result.reason)
       return
     }
-    setDraft({ ...result.value, amount: String(result.value.amount) })
+    setDraft(result.value)
   }
 
   async function saveDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!draft) return
 
-    const amount = Number(draft.amount)
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
+    const amount = draft.amount
+    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0) {
       setError('Nominal harus berupa bilangan bulat rupiah yang lebih dari nol.')
       return
     }
@@ -166,15 +166,11 @@ export function QuickEntry({
               <option value="expense">Pengeluaran</option>
               <option value="income">Pemasukan</option>
             </SelectField>
-            <Input
+            <MoneyInput
               label="Nominal (rupiah)"
-              type="number"
-              inputMode="numeric"
-              step="1"
-              min="1"
               required
               value={draft.amount}
-              onChange={(event) => setDraft({ ...draft, amount: event.target.value })}
+              onChange={(amount) => setDraft({ ...draft, amount })}
             />
             <SelectField
               label="Dompet"

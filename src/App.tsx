@@ -157,13 +157,12 @@ function App({
     }
   }
 
-  async function handleBackupExport() {
+  async function exportBackupAndSaveTimestamp(): Promise<string> {
     let exportedAt: string
     try {
       exportedAt = await exportBackup()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Backup JSON gagal diekspor.')
-      return
+      throw new Error(error instanceof Error ? error.message : 'Backup JSON gagal diekspor.')
     }
 
     try {
@@ -171,13 +170,23 @@ function App({
         key: LAST_BACKUP_SETTING_KEY,
         value: exportedAt,
       })
-      setMessage('Backup JSON berhasil diekspor.')
     } catch (error) {
-      setMessage(
+      throw new Error(
         error instanceof Error
           ? `File backup sudah dibuat, tetapi tanggal backup gagal disimpan: ${error.message}`
           : 'File backup sudah dibuat, tetapi tanggal backup gagal disimpan.',
       )
+    }
+
+    return exportedAt
+  }
+
+  async function handleBackupExport() {
+    try {
+      await exportBackupAndSaveTimestamp()
+      setMessage('Backup JSON berhasil diekspor.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Backup JSON gagal diekspor.')
     }
   }
 
@@ -267,7 +276,7 @@ function App({
             onOpenWallets={() => setPage('Dompet')}
             onOpenBudget={() => setPage('Budget')}
             onOpenReport={() => openReport('Home')}
-            onOpenSettings={() => setPage('Pengaturan')}
+            onExportBackup={exportBackupAndSaveTimestamp}
             focusQuickEntry={focusQuickEntry}
             onQuickEntryFocused={handleQuickEntryFocused}
           />

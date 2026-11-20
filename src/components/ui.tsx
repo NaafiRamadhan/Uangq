@@ -1,5 +1,19 @@
-import { useId, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes } from 'react'
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+} from 'react'
 import type { ReactNode } from 'react'
+import {
+  formatMoneyInput,
+  getMoneyInputCaretPosition,
+  parseMoneyInput,
+  type MoneyInputValue,
+} from '../lib/money'
 import type { EffectiveTheme, ThemeMode } from '../lib/theme'
 
 type IconName = 'home' | 'wallet' | 'transactions' | 'budget' | 'settings' | 'sun' | 'moon'
@@ -46,6 +60,90 @@ export function Input({ label, id, className = '', ...props }: InputProps) {
     <label className="input-field" htmlFor={inputId}>
       <span>{label}</span>
       <input id={inputId} className={`input-control ${className}`.trim()} {...props} />
+    </label>
+  )
+}
+
+type MoneyInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'id' | 'type' | 'inputMode' | 'value' | 'onChange'
+> & {
+  label: string
+  id?: string
+  value: MoneyInputValue
+  onChange: (value: MoneyInputValue) => void
+}
+
+export function MoneyInput({
+  label,
+  id,
+  value,
+  onChange,
+  className = '',
+  'aria-describedby': describedBy,
+  'aria-invalid': ariaInvalid,
+  ...props
+}: MoneyInputProps) {
+  const generatedId = useId()
+  const inputId = id ?? generatedId
+  const errorId = `${inputId}-money-error`
+  const inputRef = useRef<HTMLInputElement>(null)
+  const pendingCaretDigits = useRef<number | null>(null)
+  const [error, setError] = useState('')
+  const [renderVersion, setRenderVersion] = useState(0)
+  const formattedValue = formatMoneyInput(value)
+
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    const digitCount = pendingCaretDigits.current
+    if (!input || digitCount === null) return
+
+    const caret = getMoneyInputCaretPosition(input.value, digitCount)
+    input.setSelectionRange(caret, caret)
+    pendingCaretDigits.current = null
+  }, [renderVersion, value])
+
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const rawValue = input.value
+    const selectionStart = input.selectionStart ?? rawValue.length
+    const digitsBeforeCaret = rawValue.slice(0, selectionStart).replace(/\D/g, '').length
+    const parsedValue = parseMoneyInput(rawValue)
+
+    pendingCaretDigits.current = digitsBeforeCaret
+    if (parsedValue === null) {
+      setError('Nominal melebihi batas bilangan bulat rupiah yang aman.')
+      input.value = formattedValue
+    } else {
+      setError('')
+      input.value = formatMoneyInput(parsedValue)
+      onChange(parsedValue)
+    }
+    setRenderVersion((version) => version + 1)
+  }
+
+  const mergedDescribedBy = [describedBy, error ? errorId : ''].filter(Boolean).join(' ') || undefined
+
+  return (
+    <label className="input-field" htmlFor={inputId}>
+      <span>{label}</span>
+      <span className="money-input">
+        <span className="money-input__prefix" aria-hidden="true">Rp</span>
+        <input
+          {...props}
+          ref={inputRef}
+          id={inputId}
+          className={`input-control money-input__control ${className}`.trim()}
+          type="text"
+          inputMode="numeric"
+          value={formattedValue}
+          onChange={handleChange}
+          aria-describedby={mergedDescribedBy}
+          aria-invalid={Boolean(error) || ariaInvalid}
+          autoComplete={props.autoComplete ?? 'off'}
+        />
+      </span>
+      {error && <span className="money-input__error" id={errorId} role="alert">{error}</span>}
     </label>
   )
 }

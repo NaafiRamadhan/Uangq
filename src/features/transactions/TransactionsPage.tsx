@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { db, seedDatabase, type Category, type Transaction, type Wallet } from '../../db/schema'
 import { formatRupiah } from '../../lib/money'
-import { Button, Card, EmptyState, Input } from '../../components/ui'
+import { Button, Card, EmptyState, Input, MoneyInput } from '../../components/ui'
 import { QuickEntry } from './QuickEntry'
 
 type TransactionDraft = {
   type: Transaction['type']
-  amount: string
+  amount: number | ''
   walletId: string
   toWalletId: string
   categoryId: string
@@ -51,8 +51,8 @@ function newDraft(walletId = ''): TransactionDraft {
 }
 
 function transactionFromDraft(draft: TransactionDraft, existing?: Transaction): Transaction {
-  const amount = Number(draft.amount)
-  if (!Number.isSafeInteger(amount) || amount <= 0) {
+  const amount = draft.amount
+  if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0) {
     throw new Error('Nominal transaksi harus berupa bilangan bulat rupiah yang lebih dari nol.')
   }
   if (!draft.walletId) throw new Error('Pilih dompet transaksi.')
@@ -79,7 +79,7 @@ function transactionFromDraft(draft: TransactionDraft, existing?: Transaction): 
 function draftFromTransaction(transaction: Transaction): TransactionDraft {
   return {
     type: transaction.type,
-    amount: String(transaction.amount),
+    amount: transaction.amount,
     walletId: transaction.walletId,
     toWalletId: transaction.toWalletId ?? '',
     categoryId: transaction.categoryId ?? '',
@@ -336,16 +336,12 @@ export function TransactionsPage({
           <option value="income">Pemasukan</option>
           <option value="transfer">Transfer</option>
         </SelectField>
-        <Input
+        <MoneyInput
           label="Nominal (rupiah)"
-          type="number"
-          inputMode="numeric"
-          step="1"
-          min="1"
           required
           value={draft.amount}
-          onChange={(event) => update({ amount: event.target.value })}
-          placeholder="Contoh: 25000"
+          onChange={(amount) => update({ amount })}
+          placeholder="Contoh: 25.000"
         />
         <SelectField
           label={draft.type === 'transfer' ? 'Dompet sumber' : 'Dompet'}

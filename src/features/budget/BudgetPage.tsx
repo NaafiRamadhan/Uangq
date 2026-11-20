@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { db, seedDatabase, type Budget, type BudgetItem, type Category, type Transaction } from '../../db/schema'
 import { calculateBudgetOverview, type BudgetGroup } from '../../lib/budget'
 import { formatRupiah } from '../../lib/money'
-import { Button, Card, EmptyState, Input } from '../../components/ui'
+import { Button, Card, EmptyState, MoneyInput } from '../../components/ui'
 import { BudgetProgress } from './BudgetProgress'
 
 type SplitValues = {
@@ -36,9 +36,9 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [total, setTotal] = useState('')
+  const [total, setTotal] = useState<number | ''>('')
   const [splits, setSplits] = useState<SplitValues>(initialSplits)
-  const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>({})
+  const [categoryLimits, setCategoryLimits] = useState<Record<string, number | ''>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -57,7 +57,7 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
       setBudgetItems(nextItems)
       setCategories(nextCategories)
       setTransactions(nextTransactions)
-      setTotal(nextBudget ? String(nextBudget.total) : '')
+      setTotal(nextBudget ? nextBudget.total : '')
       setSplits(nextBudget
         ? {
             needs: nextBudget.splitNeeds,
@@ -65,7 +65,7 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
             savings: nextBudget.splitSavings,
           }
         : initialSplits)
-      setCategoryLimits(Object.fromEntries(nextItems.map((item) => [item.categoryId, String(item.limit)])))
+      setCategoryLimits(Object.fromEntries(nextItems.map((item) => [item.categoryId, item.limit])))
       setError('')
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Data budget gagal dimuat.')
@@ -81,7 +81,7 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
   const activeCategories = categories.filter((category) => !category.archived && category.group !== 'income')
   const splitTotal = splits.needs + splits.wants + splits.savings
   const remainingPercent = 100 - splitTotal
-  const totalNumber = Number(total)
+  const totalNumber = typeof total === 'number' ? total : 0
   const today = new Date()
   let overview: ReturnType<typeof calculateBudgetOverview> | null = null
   let calculationError = ''
@@ -101,7 +101,7 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
 
   async function saveBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!Number.isSafeInteger(totalNumber) || totalNumber <= 0) {
+    if (total === '' || !Number.isSafeInteger(total) || total <= 0) {
       setError('Total budget harus berupa bilangan bulat rupiah yang lebih dari nol.')
       return
     }
@@ -113,7 +113,7 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
     const nextBudget: Budget = {
       id: budget?.id ?? crypto.randomUUID(),
       month,
-      total: totalNumber,
+      total,
       splitNeeds: splits.needs,
       splitWants: splits.wants,
       splitSavings: splits.savings,
@@ -150,9 +150,9 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
 
     const nextItems = [...archivedItems]
     for (const category of activeCategories) {
-      const value = categoryLimits[category.id]?.trim()
-      if (!value) continue
-      const limit = Number(value)
+      const value = categoryLimits[category.id]
+      if (value === undefined || value === '') continue
+      const limit = value
       if (!Number.isSafeInteger(limit) || limit < 0) {
         setError(`Batas kategori ${category.name} harus berupa bilangan bulat rupiah nonnegatif.`)
         return
@@ -198,16 +198,12 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
         <p className="section-kicker">BUDGET BULANAN</p>
         <h2>{displayMonth(month)}</h2>
         <form className="feature-form" onSubmit={(event) => void saveBudget(event)}>
-          <Input
+          <MoneyInput
             label="Total budget (rupiah)"
-            type="number"
-            inputMode="numeric"
-            min="1"
-            step="1"
             required
             value={total}
-            onChange={(event) => setTotal(event.target.value)}
-            placeholder="Contoh: 5000000"
+            onChange={setTotal}
+            placeholder="Contoh: 5.000.000"
           />
           <fieldset className="allocation-fieldset">
             <legend>Pembagian budget</legend>
@@ -288,16 +284,12 @@ export function BudgetPage({ onOpenReport }: { onOpenReport: () => void }) {
                 const progress = overview?.categories.find(({ categoryId }) => categoryId === category.id)
                 return (
                   <div className="budget-category-row" key={category.id}>
-                    <Input
+                    <MoneyInput
                       label={`${category.name} — batas rupiah`}
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      step="1"
                       value={categoryLimits[category.id] ?? ''}
-                      onChange={(event) => setCategoryLimits({
+                      onChange={(limit) => setCategoryLimits({
                         ...categoryLimits,
-                        [category.id]: event.target.value,
+                        [category.id]: limit,
                       })}
                       placeholder="Belum ada batas"
                     />

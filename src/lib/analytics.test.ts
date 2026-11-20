@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Category, Transaction } from '../db/schema'
-import { calculateMonthlyAnalytics } from './analytics'
+import { calculateMonthlyAnalytics, calculateSevenDayExpenseSeries } from './analytics'
 
 const categories: Pick<Category, 'id' | 'name'>[] = [
   { id: 'food', name: 'Makan' },
@@ -41,6 +41,7 @@ describe('calculateMonthlyAnalytics', () => {
         percentageChange: 0,
       },
     })
+
     expect(result.categorySpending).toEqual([])
     expect(result.trends).toHaveLength(6)
     expect(result.trends.every(({ expense, income }) => expense === 0 && income === 0)).toBe(true)
@@ -162,5 +163,41 @@ describe('calculateMonthlyAnalytics', () => {
       busiestDay: { date: '2024-02-03', amount: 500 },
       transactionCount: 2,
     })
+  })
+})
+
+describe('calculateSevenDayExpenseSeries', () => {
+  it('returns seven zero-value days when there is no spending', () => {
+    const result = calculateSevenDayExpenseSeries([], new Date(2026, 3, 10))
+
+    expect(result.days).toHaveLength(7)
+    expect(result.days[0].date).toBe('2026-04-04')
+    expect(result.days[6].date).toBe('2026-04-10')
+    expect(result.days.every(({ amount }) => amount === 0)).toBe(true)
+    expect(result.total).toBe(0)
+    expect(result.average).toBe(0)
+  })
+
+  it('includes only expenses in the seven local calendar days, including across a year boundary', () => {
+    const result = calculateSevenDayExpenseSeries([
+      transaction({ id: 'previous-year', date: '2025-12-28', amount: 10 }),
+      transaction({ id: 'same-day', date: '2026-01-02', amount: 21 }),
+      transaction({ id: 'income', type: 'income', date: '2026-01-03', amount: 500 }),
+      transaction({ id: 'transfer', type: 'transfer', date: '2026-01-03', amount: 700 }),
+      transaction({ id: 'too-old', date: '2025-12-27', amount: 900 }),
+    ], new Date(2026, 0, 3))
+
+    expect(result.days.map(({ date }) => date)).toEqual([
+      '2025-12-28',
+      '2025-12-29',
+      '2025-12-30',
+      '2025-12-31',
+      '2026-01-01',
+      '2026-01-02',
+      '2026-01-03',
+    ])
+    expect(result.days.map(({ amount }) => amount)).toEqual([10, 0, 0, 0, 0, 21, 0])
+    expect(result.total).toBe(31)
+    expect(result.average).toBe(4)
   })
 })

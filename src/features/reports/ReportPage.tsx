@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { db, seedDatabase, type Category, type Transaction } from '../../db/schema'
 import { Button, Card, EmptyState, Input } from '../../components/ui'
 import { calculateMonthlyAnalytics, type MonthlyAnalytics } from '../../lib/analytics'
+import { getMonthActivityDates } from '../../lib/budget'
 import { formatRupiah } from '../../lib/money'
 
-function currentMonthKey(): string {
-  const date = new Date()
+const weekdays = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+
+function currentMonthKey(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
@@ -13,6 +15,10 @@ function monthLabel(month: string, style: 'long' | 'short' = 'long'): string {
   const [year, monthNumber] = month.split('-').map(Number)
   return new Intl.DateTimeFormat('id-ID', { month: style, year: 'numeric' })
     .format(new Date(year, monthNumber - 1, 1))
+}
+
+function isValidMonthKey(month: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
 }
 
 function percentLabel(value: number | null): string {
@@ -26,6 +32,46 @@ function calculateReport(
   categories: readonly Category[],
 ): MonthlyAnalytics {
   return calculateMonthlyAnalytics({ month, transactions, categories })
+}
+
+function ActivityCalendar({ month, activityDates, today }: {
+  month: string
+  activityDates: readonly string[]
+  today: Date
+}) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const daysInMonth = new Date(year, monthNumber, 0).getDate()
+  const firstWeekday = new Date(year, monthNumber - 1, 1).getDay()
+  const cells: Array<number | null> = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ]
+  const activity = new Set(activityDates)
+  const todayKey = `${currentMonthKey(today)}-${String(today.getDate()).padStart(2, '0')}`
+
+  return (
+    <div className="activity-calendar" role="grid" aria-label={`Aktivitas ${monthLabel(month)}`}>
+      {weekdays.map((weekday) => (
+        <span className="activity-calendar__weekday" role="columnheader" key={weekday}>{weekday}</span>
+      ))}
+      {cells.map((day, index) => {
+        if (day === null) return <span className="activity-calendar__empty" role="gridcell" key={`empty-${index}`} />
+        const date = `${month}-${String(day).padStart(2, '0')}`
+        const hasActivity = activity.has(date)
+        const isToday = date === todayKey
+        return (
+          <span
+            className={`activity-calendar__day${hasActivity ? ' has-activity' : ''}${isToday ? ' is-today' : ''}`}
+            role="gridcell"
+            aria-label={`${day}${hasActivity ? ', ada transaksi' : ', tidak ada transaksi'}${isToday ? ', hari ini' : ''}`}
+            key={date}
+          >
+            {day}
+          </span>
+        )
+      })}
+    </div>
+  )
 }
 
 function MonthlyTrend({ analytics }: { analytics: MonthlyAnalytics }) {
@@ -77,6 +123,7 @@ export function ReportPage({ onBack }: { onBack: () => void }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const today = new Date()
 
   useEffect(() => {
     async function loadReportData() {
@@ -109,6 +156,10 @@ export function ReportPage({ onBack }: { onBack: () => void }) {
   } catch (reportError) {
     calculationError = reportError instanceof Error ? reportError.message : 'Laporan gagal dihitung.'
   }
+  const activityDates = isValidMonthKey(month) ? getMonthActivityDates(month, transactions) : []
+  const activityCount = isValidMonthKey(month)
+    ? transactions.filter((transaction) => transaction.date.slice(0, 7) === month).length
+    : 0
 
   return (
     <div className="feature-page report-page">
@@ -126,6 +177,16 @@ export function ReportPage({ onBack }: { onBack: () => void }) {
           onChange={(event) => setMonth(event.target.value)}
         />
       </Card>
+
+      {isValidMonthKey(month) && (
+        <Card className="report-calendar-card">
+          <p className="section-kicker">AKTIVITAS BULAN INI</p>
+          <h2>{monthLabel(month)}</h2>
+          <ActivityCalendar month={month} activityDates={activityDates} today={today} />
+          <p className="calendar-legend"><span aria-hidden="true" /> Ada transaksi</p>
+          <p className="backup-note">{activityCount} transaksi bulan ini.</p>
+        </Card>
+      )}
 
       {analytics && (
         <>

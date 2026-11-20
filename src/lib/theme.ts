@@ -23,5 +23,5 @@ export function applyThemeToDocument(mode: ThemeMode, prefersDark: boolean): voi
 
   const themeColor = document.querySelector<HTMLMetaElement>('#theme-color-meta')
   if (!themeColor) throw new Error('Elemen meta warna tema tidak ditemukan.')
-  themeColor.content = effectiveTheme === 'dark' ? '#0d1413' : '#f4f7f6'
+  themeColor.content = effectiveTheme === 'dark' ? '#050505' : '#ffffff'
 }

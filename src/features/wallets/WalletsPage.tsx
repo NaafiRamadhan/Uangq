@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { db, type Transaction, type Wallet } from '../../db/schema'
 import { calculateWalletBalances } from '../../lib/balances'
 import { formatRupiah } from '../../lib/money'
-import { Button, Card, EmptyState, Input } from '../../components/ui'
+import { Button, Card, EmptyState, Input, MoneyInput } from '../../components/ui'
 
 const walletTypes: { value: Wallet['type']; label: string }[] = [
   { value: 'bank', label: 'Rekening bank' },
@@ -19,13 +19,13 @@ function isWalletType(value: string): value is Wallet['type'] {
 type WalletDraft = {
   name: string
   type: Wallet['type']
-  initialBalance: string
+  initialBalance: number | ''
 }
 
 const newWalletDraft = (): WalletDraft => ({
   name: '',
   type: 'bank',
-  initialBalance: '0',
+  initialBalance: 0,
 })
 
 export function WalletsPage() {
@@ -87,7 +87,7 @@ export function WalletsPage() {
     setDraft({
       name: wallet.name,
       type: wallet.type,
-      initialBalance: String(wallet.initialBalance),
+      initialBalance: wallet.initialBalance,
     })
     setFormOpen(true)
     setError('')
@@ -96,13 +96,13 @@ export function WalletsPage() {
   async function saveWallet(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const name = draft.name.trim()
-    const initialBalance = Number(draft.initialBalance)
+    const initialBalance = draft.initialBalance
 
     if (!name) {
       setError('Nama dompet wajib diisi.')
       return
     }
-    if (!Number.isSafeInteger(initialBalance)) {
+    if (typeof initialBalance !== 'number' || !Number.isSafeInteger(initialBalance)) {
       setError('Saldo awal harus berupa bilangan bulat rupiah.')
       return
     }
@@ -183,14 +183,11 @@ export function WalletsPage() {
                 {walletTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
               </select>
             </label>
-            <Input
+            <MoneyInput
               label="Saldo awal (rupiah)"
-              type="number"
-              inputMode="numeric"
-              step="1"
               required
               value={draft.initialBalance}
-              onChange={(event) => setDraft({ ...draft, initialBalance: event.target.value })}
+              onChange={(initialBalance) => setDraft({ ...draft, initialBalance })}
             />
             <div className="form-actions">
               <Button type="submit">{editingWallet ? 'Simpan perubahan' : 'Simpan dompet'}</Button>

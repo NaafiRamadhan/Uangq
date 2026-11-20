@@ -33,6 +33,17 @@ export type MonthlyAnalytics = {
   }
 }
 
+export type DailyExpensePoint = {
+  date: string
+  amount: number
+}
+
+export type SevenDayExpenseSeries = {
+  days: DailyExpensePoint[]
+  total: number
+  average: number
+}
+
 type MonthlyAnalyticsInput = {
   month: string
   transactions: readonly Transaction[]
@@ -42,6 +53,42 @@ type MonthlyAnalyticsInput = {
 type MonthlyTotals = {
   expense: bigint
   income: bigint
+}
+
+export function calculateSevenDayExpenseSeries(
+  transactions: readonly Transaction[],
+  today: Date = new Date(),
+): SevenDayExpenseSeries {
+  if (Number.isNaN(today.getTime())) throw new RangeError('Tanggal acuan grafik tidak valid.')
+
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6 + index)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  })
+  const daySet = new Set(days)
+  const spending = new Map<string, bigint>(days.map((day) => [day, 0n]))
+
+  for (const transaction of transactions) {
+    if (transaction.type !== 'expense' || !daySet.has(transaction.date)) continue
+    if (!Number.isSafeInteger(transaction.amount) || transaction.amount <= 0) {
+      throw new RangeError(`Nominal transaksi ${transaction.id} harus berupa bilangan bulat positif.`)
+    }
+    spending.set(
+      transaction.date,
+      (spending.get(transaction.date) ?? 0n) + BigInt(transaction.amount),
+    )
+  }
+
+  const points = days.map((date) => ({
+    date,
+    amount: toSafeNumber(spending.get(date) ?? 0n, `Pengeluaran ${date}`),
+  }))
+  const total = points.reduce((sum, { amount }) => sum + amount, 0)
+  if (!Number.isSafeInteger(total)) {
+    throw new RangeError('Total pengeluaran tujuh hari berada di luar rentang bilangan bulat yang aman.')
+  }
+
+  return { days: points, total, average: Math.trunc(total / 7) }
 }
 
 export function calculateMonthlyAnalytics({
